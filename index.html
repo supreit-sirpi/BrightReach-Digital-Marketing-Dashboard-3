@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrightReach — Digital Marketing Admin Dashboard</title>
+  <meta name="description" content="BrightReach Digital Marketing — Premium Admin Dashboard with full CRUD, budget monitoring, campaign analytics and client portal.">
+  <meta name="theme-color" content="#6366f1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- =============================================
+     LOGIN PAGE
+     ============================================= -->
+<div id="login-page">
+
+  <!-- LEFT — Login Form -->
+  <div class="login-left">
+    <div class="login-form-card">
+
+      <div class="login-logo">
+        <div class="login-logo-icon">🚀</div>
+        <div>
+          <div class="login-logo-text">BrightReach</div>
+          <span class="login-logo-sub">Digital Marketing Platform</span>
+        </div>
+      </div>
+
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Sign in to access your dashboard</p>
+
+      <div id="login-error" class="login-error" role="alert"></div>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" class="form-control" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn-login" id="login-submit-btn">Sign In →</button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- RIGHT — Demo Credentials -->
+  <div class="login-right">
+    <div class="demo-section-title">✨ Demo Access</div>
+
+    <div class="demo-credentials-container">
+
+      <!-- Admin Card -->
+      <div class="demo-card">
+        <div class="demo-card-header">
+          <div class="demo-card-icon admin">👑</div>
+          <div>
+            <div class="demo-card-label">Full Admin Access</div>
+            <div class="demo-card-title">Admin Account</div>
+          </div>
+        </div>
+        <div class="demo-credential-row">
+          <span class="demo-cred-key">Email</span>
+          <span class="demo-cred-val">admin@brightreach.com</span>
+        </div>
+        <div class="demo-credential-row" style="margin-bottom:16px;">
+          <span class="demo-cred-key">Password</span>
+          <span class="demo-cred-val">Admin@123</span>
+        </div>
+        <button
+          class="btn btn-primary"
+          style="width:100%;justify-content:center;"
+          id="login-as-admin-btn"
+          onclick="autoFill('admin@brightreach.com','Admin@123')">
+          👑 &nbsp;Auto-fill Admin Login
+        </button>
+      </div>
+
+      <!-- Client Card -->
+      <div class="demo-card">
+        <div class="demo-card-header">
+          <div class="demo-card-icon client">👤</div>
+          <div>
+            <div class="demo-card-label">Client Portal Access</div>
+            <div class="demo-card-title">Client Accounts</div>
+          </div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+          Click a client to auto-fill login. All use password: <span class="demo-cred-val">Client@123</span>
+        </p>
+        <div class="demo-client-list">
+
+          <div class="demo-client-item" id="fill-fashionhub" onclick="autoFill('fashionhub@client.com','Client@123')" title="Click to fill login form">
+            <div>
+              <div class="demo-client-name">Fashion Hub</div>
+              <div class="demo-client-email">fashionhub@client.com</div>
+            </div>
+            <div class="demo-client-badge" style="background:rgba(245,158,11,0.15);color:#fbbf24;border-color:rgba(245,158,11,0.3);">⚠ 92%</div>
+          </div>
+
+          <div class="demo-client-item" id="fill-royal" onclick="autoFill('royalrestaurant@client.com','Client@123')" title="Click to fill login form">
+            <div>
+              <div class="demo-client-name">Royal Restaurant</div>
+              <div class="demo-client-email">royalrestaurant@client.com</div>
+            </div>
+            <div class="demo-client-badge">✓ Healthy</div>
+          </div>
+
+          <div class="demo-client-item" id="fill-smart" onclick="autoFill('smartacademy@client.com','Client@123')" title="Click to fill login form">
+            <div>
+              <div class="demo-client-name">Smart Academy</div>
+              <div class="demo-client-email">smartacademy@client.com</div>
+            </div>
+            <div class="demo-client-badge">✓ Healthy</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     MAIN APPLICATION
+     ============================================= -->
+<div id="app">
+  <div class="app-layout">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation"></aside>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <header class="topbar" id="topbar" role="banner"></header>
+      <main class="page-content" id="page-content" role="main"></main>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- =============================================
+     MODALS
+     ============================================= -->
+
+<!-- Detail / View Modal -->
+<div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="detail-modal-title">Details</div>
+      <button class="modal-close" id="close-detail-modal" onclick="Modal.hide('detail-modal')" aria-label="Close">✕</button>
+    </div>
+    <div id="detail-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="detail-close-btn" onclick="Modal.hide('detail-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create / Edit Form Modal -->
+<div class="modal-overlay" id="form-modal" role="dialog" aria-modal="true" aria-labelledby="form-modal-title">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="form-modal-title">Form</div>
+      <button class="modal-close" id="close-form-modal" onclick="Modal.hide('form-modal')" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-form">
+      <div id="form-modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="form-cancel-btn" onclick="Modal.hide('form-modal')">Cancel</button>
+        <button class="btn btn-primary" id="form-modal-save">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-heading">
+  <div class="modal" style="max-width:420px;text-align:center;">
+    <div class="delete-modal-icon" aria-hidden="true">🗑️</div>
+    <div class="delete-modal-text">
+      <h3 id="delete-modal-heading">Confirm Delete</h3>
+      <p style="margin-top:8px;">
+        Are you sure you want to delete <strong id="del-type"></strong><br>
+        "<strong id="del-name"></strong>"?<br>
+        <span style="color:var(--danger);font-size:0.8rem;font-weight:600;">This action cannot be undone.</span>
+      </p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;margin-top:24px;">
+      <button class="btn btn-secondary" id="delete-cancel-btn" onclick="Modal.hide('delete-modal')">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn" onclick="CRUD.executeDelete()">🗑 &nbsp;Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     TOAST NOTIFICATIONS
+     ============================================= -->
+<div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+
+<!-- Application Script -->
+<script src="app.js"></script>
+</body>
+</html>
