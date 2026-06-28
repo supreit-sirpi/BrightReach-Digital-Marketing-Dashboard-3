@@ -1,0 +1,18 @@
+# Node.js dependencies - never commit these
+backend/node_modules/
+node_modules/
+
+# SQLite database file (contains local data)
+backend/database.sqlite
+
+# Environment variables
+.env
+backend/.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
