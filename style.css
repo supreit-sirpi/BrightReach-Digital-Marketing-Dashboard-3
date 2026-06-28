@@ -302,7 +302,7 @@ body {
 .btn-login:hover { transform: translateY(-2px); box-shadow: 0 12px 38px rgba(99,102,241,0.55); }
 .btn-login:active { transform: translateY(0); }
 
-/* Right — demo credentials */
+/* Right — Branding Visuals */
 .login-right {
   display: flex;
   flex-direction: column;
@@ -313,98 +313,77 @@ body {
   border-left: 1px solid var(--border);
   overflow-y: auto;
 }
+.branding-right {
+  position: relative;
+  overflow: hidden;
+}
 
-.demo-section-title {
-  font-size: 0.7rem;
-  font-weight: 800;
+/* Authentication Links */
+.auth-links {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 500;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 3px;
-  margin-bottom: 24px;
-  text-align: center;
 }
-
-.demo-credentials-container {
-  width: 100%;
-  max-width: 390px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.demo-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 22px;
-  transition: all var(--transition-md);
-}
-.demo-card:hover { border-color: rgba(99,102,241,0.3); transform: translateY(-2px); box-shadow: var(--shadow-md); }
-
-.demo-card-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.demo-card-icon {
-  width: 42px; height: 42px;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  flex-shrink: 0;
-}
-.demo-card-icon.admin  { background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(99,102,241,0.08)); border: 1px solid rgba(99,102,241,0.25); }
-.demo-card-icon.client { background: linear-gradient(135deg, rgba(16,185,129,0.25), rgba(16,185,129,0.08)); border: 1px solid rgba(16,185,129,0.25); }
-
-.demo-card-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 2px; }
-.demo-card-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
-
-.demo-credential-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.demo-cred-key { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
-.demo-cred-val {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  font-family: 'Courier New', monospace;
-  background: rgba(255,255,255,0.05);
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-}
-
-.demo-client-list { margin-bottom: 14px; }
-.demo-client-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.02);
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
+.auth-links span {
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all var(--transition);
+  transition: color var(--transition);
 }
-.demo-client-item:hover { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.04); transform: translateX(4px); }
-.demo-client-name  { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
-.demo-client-email { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+.auth-links span:hover {
+  color: var(--primary-light);
+  text-decoration: underline;
+}
 
-.demo-client-badge {
-  font-size: 0.67rem;
-  padding: 3px 9px;
-  border-radius: 20px;
-  background: rgba(16,185,129,0.12);
+/* Password Wrappers and Toggles */
+.password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-wrap input {
+  padding-right: 40px; /* Space for the eye icon */
+}
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1rem;
+  transition: color var(--transition);
+}
+.password-toggle:hover {
+  color: var(--text-primary);
+  background: none;
+  border-color: transparent;
+}
+
+/* Password Strength Indicators */
+.password-strength-box {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 20px;
+}
+.pw-req {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.3s;
+}
+.pw-req.valid {
   color: var(--success);
-  font-weight: 700;
-  border: 1px solid rgba(16,185,129,0.2);
-  white-space: nowrap;
+}
+.pw-req:last-child {
+  margin-bottom: 0;
 }
 
 /* ====================================

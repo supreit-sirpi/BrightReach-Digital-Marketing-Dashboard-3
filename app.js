@@ -12,111 +12,207 @@
    simply replace these methods with standard fetch() calls
    like: return fetch('/api/clients').then(r => r.json());
    ==================================================== */
+const API_URL = 'http://localhost:3000/api';
+
 const ApiService = {
-  get(key) {
-    try { return JSON.parse(localStorage.getItem('br_' + key)) || null; }
-    catch { return null; }
+  _data: null,
+  async init() {
+    const token = Auth.getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/data`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Data fetch failed');
+      this._data = await res.json();
+    } catch (e) {
+      console.error(e);
+      Auth.logout();
+    }
   },
-  set(key, data) { localStorage.setItem('br_' + key, JSON.stringify(data)); },
+  get(key) {
+    return this._data ? this._data[key] : null;
+  },
+  set(key, data) {
+    if (this._data) this._data[key] = data;
+    this._sync();
+  },
   all() {
-    return {
-      users:     this.get('users')    || [],
-      clients:   this.get('clients')  || [],
-      campaigns: this.get('campaigns')|| [],
-      leads:     this.get('leads')    || [],
-      activity:  this.get('activity') || [],
-    };
+    return this._data || { users:[], clients:[], campaigns:[], leads:[], activity:[] };
+  },
+  async _sync() {
+    const token = Auth.getToken();
+    if (!token || !this._data) return;
+    try {
+      await fetch(`${API_URL}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(this._data)
+      });
+    } catch(e) { console.error('Sync error', e); }
   }
 };
 
-/* ====================================================
-   DEMO DATA SEED
-   ==================================================== */
-function seedDemoData() {
-  if (ApiService.get('seeded')) return;
+const SessionManager = {
+  timeout: null,
+  warningTimeout: null,
+  init() {
+    this.reset();
+    document.addEventListener('mousemove', () => this.reset());
+    document.addEventListener('keydown', () => this.reset());
+    document.addEventListener('click', () => this.reset());
+    document.addEventListener('scroll', () => this.reset());
+  },
+  reset() {
+    if (!Auth.currentUser) return;
+    clearTimeout(this.timeout);
+    clearTimeout(this.warningTimeout);
+    
+    // 14 minutes to warning, 15 minutes to total logout
+    this.warningTimeout = setTimeout(() => {
+      Modal.show('session-modal');
+    }, 14 * 60 * 1000);
+    
+    this.timeout = setTimeout(() => {
+      Modal.hide('session-modal');
+      this.logout();
+    }, 15 * 60 * 1000);
+  },
+  logout() {
+    Auth.logout();
+  },
+  refreshSession() {
+    Modal.hide('session-modal');
+    this.reset();
+    // In a real app we might also refresh the JWT here
+  }
+};
 
-  const ago  = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString(); };
-  const fwd  = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString(); };
-
-  ApiService.set('users', [
-    { id:'u1', name:'Admin User',          email:'admin@brightreach.com',        password:'Admin@123',  role:'admin',  clientId:null, status:'active', createdAt:ago(60) },
-    { id:'u2', name:'Fashion Hub',         email:'fashionhub@client.com',        password:'Client@123', role:'client', clientId:'c1', status:'active', createdAt:ago(25) },
-    { id:'u3', name:'Royal Restaurant',    email:'royalrestaurant@client.com',   password:'Client@123', role:'client', clientId:'c2', status:'active', createdAt:ago(20) },
-    { id:'u4', name:'Smart Academy',       email:'smartacademy@client.com',      password:'Client@123', role:'client', clientId:'c3', status:'active', createdAt:ago(15) },
-  ]);
-
-  ApiService.set('clients', [
-    { id:'c1', name:'Fashion Hub',             email:'contact@fashionhub.com',     phone:'+91 98765 43210', address:'Mumbai, Maharashtra',   industry:'Fashion & Retail',  status:'active', createdAt:ago(90) },
-    { id:'c2', name:'Royal Restaurant',        email:'info@royalrestaurant.com',   phone:'+91 87654 32109', address:'Delhi, NCR',             industry:'Food & Beverage',   status:'active', createdAt:ago(75) },
-    { id:'c3', name:'Smart Coaching Academy',  email:'admin@smartacademy.com',     phone:'+91 76543 21098', address:'Bangalore, Karnataka',   industry:'Education',         status:'active', createdAt:ago(50) },
-  ]);
-
-  ApiService.set('campaigns', [
-    { id:'camp1', clientId:'c1', name:'Summer Collection Ads',  budget:100000, spent:92000, status:'active', platform:'Instagram',  startDate:ago(45), endDate:fwd(15), description:'Summer fashion collection promotion across social media platforms targeting young urban consumers.' },
-    { id:'camp2', clientId:'c2', name:'Weekend Food Promotion', budget:150000, spent:55000, status:'active', platform:'Facebook',   startDate:ago(30), endDate:fwd(30), description:'Weekend special offers and food promotions for Royal Restaurant across Delhi NCR.' },
-    { id:'camp3', clientId:'c3', name:'Admissions Campaign',    budget:200000, spent:75000, status:'active', platform:'Google Ads', startDate:ago(20), endDate:fwd(40), description:'Student admissions drive for the upcoming academic year 2026-27 targeting 10th-12th grade students.' },
-  ]);
-
-  ApiService.set('leads', [
-    { id:'l1', clientId:'c1', campaignId:'camp1', name:'Priya Sharma',   email:'priya.sharma@email.com',  phone:'+91 91234 56789', status:'qualified',  source:'Instagram', createdAt:ago(5) },
-    { id:'l2', clientId:'c1', campaignId:'camp1', name:'Arun Kumar',     email:'arun.kumar@email.com',    phone:'+91 90123 45678', status:'new',         source:'Instagram', createdAt:ago(3) },
-    { id:'l3', clientId:'c1', campaignId:'camp1', name:'Sneha Patel',    email:'sneha.patel@email.com',   phone:'+91 89012 34567', status:'converted',   source:'Instagram', createdAt:ago(8) },
-    { id:'l4', clientId:'c2', campaignId:'camp2', name:'Raj Verma',      email:'raj.verma@email.com',     phone:'+91 78901 23456', status:'new',         source:'Facebook',  createdAt:ago(2) },
-    { id:'l5', clientId:'c2', campaignId:'camp2', name:'Meena Reddy',    email:'meena.reddy@email.com',   phone:'+91 67890 12345', status:'qualified',   source:'Facebook',  createdAt:ago(6) },
-    { id:'l6', clientId:'c3', campaignId:'camp3', name:'Vikram Singh',   email:'vikram.singh@email.com',  phone:'+91 56789 01234', status:'new',         source:'Google',    createdAt:ago(1) },
-    { id:'l7', clientId:'c3', campaignId:'camp3', name:'Ananya Joshi',   email:'ananya.joshi@email.com',  phone:'+91 45678 90123', status:'qualified',   source:'Google',    createdAt:ago(4) },
-    { id:'l8', clientId:'c3', campaignId:'camp3', name:'Deepak Nair',    email:'deepak.nair@email.com',   phone:'+91 34567 89012', status:'converted',   source:'Google',    createdAt:ago(10) },
-  ]);
-
-  ApiService.set('activity', [
-    { id:'a1', type:'create',  entity:'client',   name:'Fashion Hub',            user:'Admin', action:'created client',               timestamp:ago(90) },
-    { id:'a2', type:'create',  entity:'client',   name:'Royal Restaurant',       user:'Admin', action:'created client',               timestamp:ago(75) },
-    { id:'a3', type:'create',  entity:'client',   name:'Smart Coaching Academy', user:'Admin', action:'created client',               timestamp:ago(50) },
-    { id:'a4', type:'create',  entity:'campaign', name:'Summer Collection Ads',  user:'Admin', action:'created campaign',             timestamp:ago(45) },
-    { id:'a5', type:'create',  entity:'campaign', name:'Weekend Food Promotion', user:'Admin', action:'created campaign',             timestamp:ago(30) },
-    { id:'a6', type:'create',  entity:'campaign', name:'Admissions Campaign',    user:'Admin', action:'created campaign',             timestamp:ago(20) },
-    { id:'a7', type:'warning', entity:'campaign', name:'Summer Collection Ads',  user:'System',action:'budget crossed 85% threshold', timestamp:ago(3) },
-    { id:'a8', type:'create',  entity:'lead',     name:'Priya Sharma',           user:'Admin', action:'added lead',                   timestamp:ago(5) },
-    { id:'a9', type:'edit',    entity:'lead',     name:'Priya Sharma',           user:'Admin', action:'status changed to Qualified',  timestamp:ago(4) },
-    { id:'a10',type:'create',  entity:'user',     name:'fashionhub@client.com',  user:'Admin', action:'created client login account', timestamp:ago(25) },
-  ]);
-
-  ApiService.set('seeded', true);
-}
-
-/* ====================================================
-   AUTH
-   ==================================================== */
 const Auth = {
   currentUser: null,
+  token: null,
 
-  login(email, password) {
-    const users = ApiService.get('users') || [];
-    const user  = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (!user)                    return { ok: false, msg: 'Invalid email or password.' };
-    if (user.status === 'disabled') return { ok: false, msg: 'Account is disabled. Contact the administrator.' };
-    this.currentUser = user;
-    sessionStorage.setItem('br_session', JSON.stringify(user));
-    return { ok: true, user };
+  getToken() { return this.token || sessionStorage.getItem('br_token'); },
+
+  async login(email, password) {
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) return { ok: false, msg: data.error || 'Login failed' };
+      
+      this.currentUser = data.user;
+      this.token = data.token;
+      sessionStorage.setItem('br_token', data.token);
+      await ApiService.init();
+      SessionManager.init();
+      return { ok: true, user: data.user };
+    } catch (e) {
+      return { ok: false, msg: 'Network error. Backend not running?' };
+    }
   },
 
   logout() {
     this.currentUser = null;
-    sessionStorage.removeItem('br_session');
+    this.token = null;
+    sessionStorage.removeItem('br_token');
+    ApiService._data = null;
     Router.go('login');
   },
 
   isAdmin()  { return this.currentUser?.role === 'admin'; },
   isClient() { return this.currentUser?.role === 'client'; },
 
-  restore() {
+  async restore() {
+    const token = sessionStorage.getItem('br_token');
+    if (!token) return false;
+    this.token = token;
     try {
-      const s = sessionStorage.getItem('br_session');
-      if (s) { this.currentUser = JSON.parse(s); return true; }
-    } catch {}
+      const res = await fetch(`${API_URL}/auth/check-session`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        this.currentUser = data.user;
+        await ApiService.init();
+        SessionManager.init();
+        return true;
+      }
+    } catch(e) {}
+    this.logout();
     return false;
   }
 };
+
+/* --- UI Logic for Auth Forms --- */
+function switchAuthView(view) {
+  document.getElementById('login-container').style.display = 'none';
+  document.getElementById('register-container').style.display = 'none';
+  document.getElementById('forgot-container').style.display = 'none';
+  document.getElementById('reset-container').style.display = 'none';
+  
+  if (view === 'login') document.getElementById('login-container').style.display = 'block';
+  else if (view === 'register') document.getElementById('register-container').style.display = 'block';
+  else if (view === 'forgot') document.getElementById('forgot-container').style.display = 'block';
+  else if (view === 'reset') document.getElementById('reset-container').style.display = 'block';
+}
+
+function togglePassword(inputId, iconElement) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    iconElement.textContent = '🔒';
+  } else {
+    input.type = 'password';
+    iconElement.textContent = '👁️';
+  }
+}
+
+function validateStrongPassword(isReset = false) {
+  const pwId = isReset ? 'reset-password' : 'reg-password';
+  const val = document.getElementById(pwId).value;
+  
+  const rules = [
+    { id: isReset ? 'r-req-len' : 'req-len', re: /.{8,}/ },
+    { id: isReset ? 'r-req-up' : 'req-up', re: /[A-Z]/ },
+    { id: isReset ? 'r-req-low' : 'req-low', re: /[a-z]/ },
+    { id: isReset ? 'r-req-num' : 'req-num', re: /[0-9]/ },
+    { id: isReset ? 'r-req-spc' : 'req-spc', re: /[^A-Za-z0-9]/ }
+  ];
+  
+  let validCount = 0;
+  rules.forEach(rule => {
+    const el = document.getElementById(rule.id);
+    if (rule.re.test(val)) {
+      el.classList.add('valid');
+      el.innerHTML = '✓ ' + el.innerHTML.substring(2);
+      validCount++;
+    } else {
+      el.classList.remove('valid');
+      el.innerHTML = '✕ ' + el.innerHTML.substring(2);
+    }
+  });
+
+  const btnId = isReset ? 'reset-submit-btn' : 'reg-submit-btn';
+  const btn = document.getElementById(btnId);
+  
+  if (!isReset) {
+    const conf = document.getElementById('reg-confirm').value;
+    const matchError = document.getElementById('pw-match-error');
+    if (conf.length > 0 && conf !== val) {
+      matchError.style.display = 'block';
+      btn.disabled = true;
+    } else {
+      matchError.style.display = 'none';
+      btn.disabled = validCount !== 5 || conf !== val;
+    }
+  } else {
+    btn.disabled = validCount !== 5;
+  }
+}
 
 /* ====================================================
    ROUTER
@@ -222,6 +318,7 @@ const App = {
           { page:'campaigns',  icon:'📢', label:'Campaigns',     badge: alerts || null },
           { page:'leads',      icon:'🎯', label:'Leads' },
           { page:'users',      icon:'🔑', label:'User Accounts' },
+          { page:'requests',   icon:'🔔', label:'Requests' },
         ]
       : [
           { page:'client-dashboard',  icon:'🏠', label:'My Dashboard' },
@@ -302,6 +399,7 @@ const App = {
       'campaigns':        () => Pages.campaigns(el),
       'leads':            () => Pages.leads(el),
       'users':            () => Pages.users(el),
+      'requests':         () => Pages.requests(el),
       'client-dashboard': () => Pages.clientDashboard(el),
       'client-campaigns': () => Pages.clientCampaigns(el),
       'client-leads':     () => Pages.clientLeads(el),
@@ -971,6 +1069,62 @@ const Pages = {
         </table>
       </div>
     `;
+  },
+
+  /* ---------- REGISTRATION REQUESTS (ADMIN) ---------- */
+  async requests(el) {
+    el.innerHTML = '<div class="page-header"><h1>Registration Requests</h1></div><div style="padding:20px;text-align:center;">Loading...</div>';
+    try {
+      const res = await fetch(`${API_URL}/pending-requests`, {
+        headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+      });
+      const pending = await res.json();
+      
+      const renderRow = (u) => `
+        <tr>
+          <td>
+            <div style="font-weight:600;">${esc(u.name)}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);">${esc(u.email)}</div>
+          </td>
+          <td>${esc(u.company)}</td>
+          <td>${esc(u.role)}</td>
+          <td><span class="badge ${u.status === 'pending' ? 'warning' : 'danger'}">${u.status}</span></td>
+          <td>${Fmt.date(u.createdAt)}</td>
+          <td>
+            ${u.status === 'pending' ? `
+            <button class="btn btn-sm btn-primary" onclick="CRUD.approveUser('${u.id}')">Approve</button>
+            <button class="btn btn-sm btn-danger" onclick="CRUD.rejectUser('${u.id}')">Reject</button>
+            ` : '—'}
+          </td>
+        </tr>
+      `;
+      
+      el.innerHTML = `
+        <div class="page-header">
+          <h1>Registration Requests</h1>
+          <div class="subtitle">Review and approve new user accounts</div>
+        </div>
+        <div class="table-card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Applicant</th>
+                <th>Company</th>
+                <th>Requested Role</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pending.length ? pending.map(renderRow).join('') : '<tr><td colspan="6" style="text-align:center;padding:40px;">No pending or rejected requests.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch(err) {
+      el.innerHTML = '<div style="color:red;padding:20px;">Error loading requests.</div>';
+    }
   }
 };
 
@@ -978,6 +1132,34 @@ const Pages = {
    CRUD OPERATIONS
    ==================================================== */
 const CRUD = {
+
+  async approveUser(id) {
+    try {
+      const res = await fetch(`${API_URL}/approve-user/${id}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast('User approved successfully.', 'success');
+        Router.go('requests');
+      } else toast(data.error, 'error');
+    } catch(e) { toast('Network error', 'error'); }
+  },
+  
+  async rejectUser(id) {
+    try {
+      const res = await fetch(`${API_URL}/reject-user/${id}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast('User rejected.', 'warning');
+        Router.go('requests');
+      } else toast(data.error, 'error');
+    } catch(e) { toast('Network error', 'error'); }
+  },
 
   /* ----- CLIENTS ----- */
   viewClient(id) {
@@ -1459,13 +1641,13 @@ const v   = id => (document.getElementById(id)?.value || '').trim();
 const esc = s  => (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 /* ====================================================
-   LOGIN HANDLERS
+   AUTH HANDLERS
    ==================================================== */
-function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-  const result   = Auth.login(email, password);
+  const result   = await Auth.login(email, password);
 
   if (result.ok) {
     const page = result.user.role === 'admin' ? 'dashboard' : 'client-dashboard';
@@ -1474,6 +1656,89 @@ function handleLogin(e) {
     const err = document.getElementById('login-error');
     err.textContent    = result.msg;
     err.style.display  = 'block';
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('reg-submit-btn');
+  if (btn.disabled) return;
+  
+  const phone = v('reg-phone');
+  if (phone.length !== 10) {
+    toast('Phone number must be exactly 10 digits.', 'error');
+    return;
+  }
+
+  const payload = {
+    name: v('reg-name'),
+    company: v('reg-company'),
+    email: v('reg-email'),
+    phone: phone,
+    role: v('reg-role'),
+    password: v('reg-password')
+  };
+  
+  try {
+    const res = await fetch(`${API_URL}/auth/register-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(data.message, 'success');
+      switchAuthView('login');
+      document.getElementById('register-form').reset();
+    } else {
+      toast(data.error, 'error');
+    }
+  } catch(err) {
+    toast('Network error. Backend not running?', 'error');
+  }
+}
+
+async function handleForgot(e) {
+  e.preventDefault();
+  const email = v('forgot-email');
+  try {
+    const res = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    toast(data.message || data.error, res.ok ? 'success' : 'error');
+    if (res.ok) switchAuthView('reset');
+  } catch(err) {
+    toast('Network error', 'error');
+  }
+}
+
+async function handleReset(e) {
+  e.preventDefault();
+  const btn = document.getElementById('reset-submit-btn');
+  if (btn.disabled) return;
+  const payload = {
+    email: v('reset-email'),
+    token: v('reset-token'),
+    newPassword: v('reset-password')
+  };
+  try {
+    const res = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(data.message, 'success');
+      switchAuthView('login');
+    } else {
+      toast(data.error, 'error');
+    }
+  } catch(err) {
+    toast('Network error', 'error');
   }
 }
 
@@ -1487,14 +1752,30 @@ function autoFill(email, password) {
 /* ====================================================
    BOOTSTRAP
    ==================================================== */
-document.addEventListener('DOMContentLoaded', () => {
-  seedDemoData();
-
-  if (Auth.restore()) {
+document.addEventListener('DOMContentLoaded', async () => {
+  if (await Auth.restore()) {
     Router.go(Auth.currentUser.role === 'admin' ? 'dashboard' : 'client-dashboard');
   } else {
     App.render();
   }
 
-  document.getElementById('login-form').addEventListener('submit', handleLogin);
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) loginForm.addEventListener('submit', handleLogin);
+  
+  const regForm = document.getElementById('register-form');
+  if (regForm) regForm.addEventListener('submit', handleRegister);
+  
+  const forgotForm = document.getElementById('forgot-form');
+  if (forgotForm) forgotForm.addEventListener('submit', handleForgot);
+  
+  const resetForm = document.getElementById('reset-form');
+  if (resetForm) resetForm.addEventListener('submit', handleReset);
+  
+  // Phone validation (only digits, 10 max)
+  const phoneInput = document.getElementById('reg-phone');
+  if (phoneInput) {
+    phoneInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^0-9]/g, '').substring(0, 10);
+    });
+  }
 });
