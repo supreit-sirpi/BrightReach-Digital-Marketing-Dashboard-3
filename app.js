@@ -12,7 +12,30 @@
    simply replace these methods with standard fetch() calls
    like: return fetch('/api/clients').then(r => r.json());
    ==================================================== */
-const API_URL = 'http://localhost:3000/api';
+const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000/api'
+  : (localStorage.getItem('br_api_url') || 'https://brightreach-backend-3.onrender.com/api');
+
+// Override fetch globally to show loading indicator if server is waking up (Render free tier sleeps)
+const originalFetch = window.fetch;
+window.fetch = async function(url, options) {
+  const isApi = typeof url === 'string' && url.includes('/api/');
+  let loadingTimer;
+  if (isApi) {
+    loadingTimer = setTimeout(() => {
+      toast('Connecting to backend... Server may take up to 50s to wake up on the free tier.', 'info');
+    }, 1800);
+  }
+  try {
+    const res = await originalFetch(url, options);
+    if (loadingTimer) clearTimeout(loadingTimer);
+    return res;
+  } catch(e) {
+    if (loadingTimer) clearTimeout(loadingTimer);
+    throw e;
+  }
+};
+
 
 const ApiService = {
   _data: null,
