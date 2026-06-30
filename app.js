@@ -1211,17 +1211,18 @@ const CRUD = {
       </div>
       <div class="form-row">
         <div class="form-group"><label>Email *</label><input class="form-control" id="f-email" type="email" placeholder="contact@client.com"></div>
-        <div class="form-group"><label>Phone</label><input class="form-control" id="f-phone" placeholder="+91 XXXXX XXXXX"></div>
+        <div class="form-group"><label>Phone *</label><input class="form-control" id="f-phone" placeholder="10 digits" oninput="this.value=this.value.replace(/[^0-9]/g,'').substring(0,10)"></div>
       </div>
       <div class="form-group"><label>Address</label><input class="form-control" id="f-address" placeholder="City, State"></div>
       <div class="form-group"><label>Status</label>
         <select class="form-control" id="f-status"><option value="active">Active</option><option value="inactive">Inactive</option></select>
       </div>
     `, () => {
-      const name = v('f-name'), email = v('f-email');
-      if (!name || !email) { toast('Name and Email are required.', 'error'); return; }
+      const name = v('f-name'), email = v('f-email'), phone = v('f-phone');
+      if (!name || !email || !phone) { toast('Name, Email, and Phone are required.', 'error'); return; }
+      if (phone.length !== 10) { toast('Phone number must be exactly 10 digits.', 'error'); return; }
       const list = ApiService.get('clients') || [];
-      list.push({ id:uid(), name, email, phone:v('f-phone'), address:v('f-address'), industry:v('f-industry'), status:v('f-status'), createdAt:new Date().toISOString() });
+      list.push({ id:uid(), name, email, phone, address:v('f-address'), industry:v('f-industry'), status:v('f-status'), createdAt:new Date().toISOString() });
       ApiService.set('clients', list);
       addActivity('created client', 'client', name, 'create');
       Modal.hideAll();
@@ -1241,7 +1242,7 @@ const CRUD = {
       </div>
       <div class="form-row">
         <div class="form-group"><label>Email *</label><input class="form-control" id="f-email" type="email" value="${esc(c.email)}"></div>
-        <div class="form-group"><label>Phone</label><input class="form-control" id="f-phone" value="${esc(c.phone||'')}"></div>
+        <div class="form-group"><label>Phone *</label><input class="form-control" id="f-phone" value="${esc(c.phone||'')}" oninput="this.value=this.value.replace(/[^0-9]/g,'').substring(0,10)"></div>
       </div>
       <div class="form-group"><label>Address</label><input class="form-control" id="f-address" value="${esc(c.address||'')}"></div>
       <div class="form-group"><label>Status</label>
@@ -1251,8 +1252,11 @@ const CRUD = {
         </select>
       </div>
     `, () => {
+      const name = v('f-name'), email = v('f-email'), phone = v('f-phone');
+      if (!name || !email || !phone) { toast('Name, Email, and Phone are required.', 'error'); return; }
+      if (phone.length !== 10) { toast('Phone number must be exactly 10 digits.', 'error'); return; }
       const idx = list.findIndex(x => x.id === id);
-      list[idx] = { ...c, name:v('f-name'), email:v('f-email'), phone:v('f-phone'), address:v('f-address'), industry:v('f-industry'), status:v('f-status') };
+      list[idx] = { ...c, name, email, phone, address:v('f-address'), industry:v('f-industry'), status:v('f-status') };
       ApiService.set('clients', list);
       addActivity('updated client', 'client', list[idx].name, 'edit');
       Modal.hideAll(); toast('Client updated!');
