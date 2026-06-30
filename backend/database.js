@@ -16,13 +16,13 @@ let dbData = {
 };
 
 // Initial Seed Data Helper
-async function seedDemoData() {
+function seedDemoData() {
   const now = new Date();
   const ago = (days) => { const d = new Date(now); d.setDate(d.getDate() - days); return d.toISOString(); };
   const fwd = (days) => { const d = new Date(now); d.setDate(d.getDate() + days); return d.toISOString(); };
 
-  const adminHash  = await bcrypt.hash('Admin@123',  10);
-  const clientHash = await bcrypt.hash('Client@123', 10);
+  const adminHash  = bcrypt.hashSync('Admin@123',  10);
+  const clientHash = bcrypt.hashSync('Client@123', 10);
 
   dbData.users = [
     { id:'u1', name:'Admin User',       email:'admin@brightreach.com',      password:adminHash,  role:'admin',  clientId:null, status:'active', createdAt:ago(60) },
@@ -84,10 +84,10 @@ function loadDb() {
   seedDemoData();
 }
 
-async function ensureDefaultUsers() {
+function ensureDefaultUsers() {
   try {
-    const adminHash = await bcrypt.hash('Admin@123', 10);
-    const clientHash = await bcrypt.hash('Client@123', 10);
+    const adminHash = bcrypt.hashSync('Admin@123', 10);
+    const clientHash = bcrypt.hashSync('Client@123', 10);
     
     if (!dbData.users) dbData.users = [];
     
