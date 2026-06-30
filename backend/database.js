@@ -74,6 +74,7 @@ function loadDb() {
     try {
       dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
       console.log('Database loaded successfully from ' + dbPath);
+      ensureDefaultUsers();
       return;
     } catch (e) {
       console.error('Error parsing JSON database, recreating...', e);
@@ -81,6 +82,45 @@ function loadDb() {
   }
   console.log('No database file found. Seeding initial demo data...');
   seedDemoData();
+}
+
+async function ensureDefaultUsers() {
+  try {
+    const adminHash = await bcrypt.hash('Admin@123', 10);
+    const clientHash = await bcrypt.hash('Client@123', 10);
+    
+    if (!dbData.users) dbData.users = [];
+    
+    // Ensure Admin
+    let admin = dbData.users.find(u => u.email === 'admin@brightreach.com');
+    if (!admin) {
+      dbData.users.push({ id:'u1', name:'Admin User', email:'admin@brightreach.com', password:adminHash, role:'admin', clientId:null, status:'active', createdAt:new Date().toISOString() });
+    } else {
+      admin.password = adminHash;
+      admin.status = 'active';
+    }
+
+    // Ensure Clients
+    const clients = [
+      { id: 'u2', name: 'Fashion Hub', email: 'fashionhub@client.com', clientId: 'c1' },
+      { id: 'u3', name: 'Royal Restaurant', email: 'royalrestaurant@client.com', clientId: 'c2' },
+      { id: 'u4', name: 'Smart Academy', email: 'smartacademy@client.com', clientId: 'c3' }
+    ];
+
+    clients.forEach(c => {
+      let u = dbData.users.find(user => user.email === c.email);
+      if (!u) {
+        dbData.users.push({ id:c.id, name:c.name, email:c.email, password:clientHash, role:'client', clientId:c.clientId, status:'active', createdAt:new Date().toISOString() });
+      } else {
+        u.password = clientHash;
+        u.status = 'active';
+      }
+    });
+
+    saveDb();
+  } catch(e) {
+    console.error('Error ensuring default users', e);
+  }
 }
 
 function saveDb() {
