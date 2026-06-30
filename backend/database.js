@@ -1,142 +1,49 @@
-const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
 const isVercel = process.env.VERCEL || process.env.NOW_REGION;
 const dbPath = isVercel
-  ? '/tmp/database.sqlite'
-  : path.resolve(__dirname, 'database.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database', err.message);
-  } else {
-    console.log('Connected to the SQLite database.');
-    db.serialize(() => {
-      db.run(`CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        phone TEXT,
-        company TEXT,
-        role TEXT DEFAULT 'client',
-        status TEXT DEFAULT 'pending',
-        clientId TEXT,
-        resetToken TEXT,
-        resetTokenExpiry INTEGER,
-        createdAt TEXT
-      )`);
+  ? '/tmp/database.json'
+  : path.resolve(__dirname, 'database.json');
 
-      db.run(`CREATE TABLE IF NOT EXISTS clients (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT,
-        phone TEXT,
-        address TEXT,
-        industry TEXT,
-        status TEXT DEFAULT 'active',
-        createdAt TEXT
-      )`);
+let dbData = {
+  users: [],
+  clients: [],
+  campaigns: [],
+  leads: [],
+  activity: []
+};
 
-      db.run(`CREATE TABLE IF NOT EXISTS campaigns (
-        id TEXT PRIMARY KEY,
-        clientId TEXT NOT NULL,
-        name TEXT NOT NULL,
-        budget REAL DEFAULT 0,
-        spent REAL DEFAULT 0,
-        status TEXT DEFAULT 'active',
-        platform TEXT,
-        startDate TEXT,
-        endDate TEXT,
-        description TEXT
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS leads (
-        id TEXT PRIMARY KEY,
-        clientId TEXT,
-        campaignId TEXT,
-        name TEXT NOT NULL,
-        email TEXT,
-        phone TEXT,
-        status TEXT,
-        source TEXT,
-        createdAt TEXT
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS activity (
-        id TEXT PRIMARY KEY,
-        type TEXT,
-        entity TEXT,
-        name TEXT,
-        user TEXT,
-        action TEXT,
-        timestamp TEXT
-      )`);
-
-      // Seed demo data after tables are ready
-      db.get("SELECT COUNT(*) as count FROM users", async (err, row) => {
-        if (!err && row.count === 0) {
-          await seedDemoData();
-          console.log('Demo data seeded successfully!');
-        } else {
-          console.log('Database already has data, skipping seed.');
-        }
-      });
-    });
-  }
-});
-
+// Initial Seed Data Helper
 async function seedDemoData() {
   const now = new Date();
   const ago = (days) => { const d = new Date(now); d.setDate(d.getDate() - days); return d.toISOString(); };
   const fwd = (days) => { const d = new Date(now); d.setDate(d.getDate() + days); return d.toISOString(); };
 
-  // Hash passwords
   const adminHash  = await bcrypt.hash('Admin@123',  10);
   const clientHash = await bcrypt.hash('Client@123', 10);
 
-  // --- USERS ---
-  const users = [
+  dbData.users = [
     { id:'u1', name:'Admin User',       email:'admin@brightreach.com',      password:adminHash,  role:'admin',  clientId:null, status:'active', createdAt:ago(60) },
     { id:'u2', name:'Fashion Hub',      email:'fashionhub@client.com',      password:clientHash, role:'client', clientId:'c1', status:'active', createdAt:ago(25) },
     { id:'u3', name:'Royal Restaurant', email:'royalrestaurant@client.com', password:clientHash, role:'client', clientId:'c2', status:'active', createdAt:ago(20) },
     { id:'u4', name:'Smart Academy',    email:'smartacademy@client.com',    password:clientHash, role:'client', clientId:'c3', status:'active', createdAt:ago(15) },
   ];
-  for (const u of users) {
-    await dbRun(
-      'INSERT INTO users (id,name,email,password,role,clientId,status,createdAt) VALUES (?,?,?,?,?,?,?,?)',
-      [u.id, u.name, u.email, u.password, u.role, u.clientId, u.status, u.createdAt]
-    );
-  }
 
-  // --- CLIENTS ---
-  const clients = [
+  dbData.clients = [
     { id:'c1', name:'Fashion Hub',            email:'contact@fashionhub.com',   phone:'9876543210', address:'Mumbai, Maharashtra', industry:'Fashion & Retail', status:'active', createdAt:ago(90) },
     { id:'c2', name:'Royal Restaurant',       email:'info@royalrestaurant.com', phone:'8765432109', address:'Delhi, NCR',           industry:'Food & Beverage',  status:'active', createdAt:ago(75) },
     { id:'c3', name:'Smart Coaching Academy', email:'admin@smartacademy.com',   phone:'7654321098', address:'Bangalore, Karnataka', industry:'Education',        status:'active', createdAt:ago(50) },
   ];
-  for (const c of clients) {
-    await dbRun(
-      'INSERT INTO clients (id,name,email,phone,address,industry,status,createdAt) VALUES (?,?,?,?,?,?,?,?)',
-      [c.id, c.name, c.email, c.phone, c.address, c.industry, c.status, c.createdAt]
-    );
-  }
 
-  // --- CAMPAIGNS ---
-  const campaigns = [
+  dbData.campaigns = [
     { id:'camp1', clientId:'c1', name:'Summer Collection Ads',  budget:100000, spent:92000, status:'active', platform:'Instagram',  startDate:ago(45), endDate:fwd(15), description:'Summer fashion collection promotion across social media platforms targeting young urban consumers.' },
     { id:'camp2', clientId:'c2', name:'Weekend Food Promotion', budget:150000, spent:55000, status:'active', platform:'Facebook',   startDate:ago(30), endDate:fwd(30), description:'Weekend special offers and food promotions for Royal Restaurant across Delhi NCR.' },
     { id:'camp3', clientId:'c3', name:'Admissions Campaign',    budget:200000, spent:75000, status:'active', platform:'Google Ads', startDate:ago(20), endDate:fwd(40), description:'Student admissions drive for upcoming academic year 2026-27 targeting 10th-12th grade students.' },
   ];
-  for (const c of campaigns) {
-    await dbRun(
-      'INSERT INTO campaigns (id,clientId,name,budget,spent,status,platform,startDate,endDate,description) VALUES (?,?,?,?,?,?,?,?,?,?)',
-      [c.id, c.clientId, c.name, c.budget, c.spent, c.status, c.platform, c.startDate, c.endDate, c.description]
-    );
-  }
 
-  // --- LEADS ---
-  const leads = [
+  dbData.leads = [
     { id:'l1', clientId:'c1', campaignId:'camp1', name:'Priya Sharma', email:'priya.sharma@email.com', phone:'9123456789', status:'qualified', source:'Instagram', createdAt:ago(5) },
     { id:'l2', clientId:'c1', campaignId:'camp1', name:'Arun Kumar',   email:'arun.kumar@email.com',   phone:'9012345678', status:'new',       source:'Instagram', createdAt:ago(3) },
     { id:'l3', clientId:'c1', campaignId:'camp1', name:'Sneha Patel',  email:'sneha.patel@email.com',  phone:'8901234567', status:'converted', source:'Instagram', createdAt:ago(8) },
@@ -146,15 +53,8 @@ async function seedDemoData() {
     { id:'l7', clientId:'c3', campaignId:'camp3', name:'Ananya Joshi', email:'ananya.joshi@email.com', phone:'4567890123', status:'qualified', source:'Google',    createdAt:ago(4) },
     { id:'l8', clientId:'c3', campaignId:'camp3', name:'Deepak Nair',  email:'deepak.nair@email.com',  phone:'3456789012', status:'converted', source:'Google',    createdAt:ago(10) },
   ];
-  for (const l of leads) {
-    await dbRun(
-      'INSERT INTO leads (id,clientId,campaignId,name,email,phone,status,source,createdAt) VALUES (?,?,?,?,?,?,?,?,?)',
-      [l.id, l.clientId, l.campaignId, l.name, l.email, l.phone, l.status, l.source, l.createdAt]
-    );
-  }
 
-  // --- ACTIVITY LOG ---
-  const activity = [
+  dbData.activity = [
     { id:'a1',  type:'create',  entity:'client',   name:'Fashion Hub',            user:'Admin',  action:'created client',               timestamp:ago(90) },
     { id:'a2',  type:'create',  entity:'client',   name:'Royal Restaurant',       user:'Admin',  action:'created client',               timestamp:ago(75) },
     { id:'a3',  type:'create',  entity:'client',   name:'Smart Coaching Academy', user:'Admin',  action:'created client',               timestamp:ago(50) },
@@ -166,31 +66,171 @@ async function seedDemoData() {
     { id:'a9',  type:'edit',    entity:'lead',     name:'Priya Sharma',           user:'Admin',  action:'status changed to Qualified',  timestamp:ago(4) },
     { id:'a10', type:'create',  entity:'user',     name:'fashionhub@client.com',  user:'Admin',  action:'created client login account', timestamp:ago(25) },
   ];
-  for (const a of activity) {
-    await dbRun(
-      'INSERT INTO activity (id,type,entity,name,user,action,timestamp) VALUES (?,?,?,?,?,?,?)',
-      [a.id, a.type, a.entity, a.name, a.user, a.action, a.timestamp]
-    );
+  saveDb();
+}
+
+function loadDb() {
+  if (fs.existsSync(dbPath)) {
+    try {
+      dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+      console.log('Database loaded successfully from ' + dbPath);
+      return;
+    } catch (e) {
+      console.error('Error parsing JSON database, recreating...', e);
+    }
+  }
+  console.log('No database file found. Seeding initial demo data...');
+  seedDemoData();
+}
+
+function saveDb() {
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving database', e);
   }
 }
 
-// Helper functions wrapping sqlite3 in promises
-const dbRun = (sql, params = []) => new Promise((resolve, reject) => {
-  db.run(sql, params, function (err) {
-    if (err) reject(err); else resolve(this);
-  });
-});
+// Load DB immediately on start
+loadDb();
 
-const dbGet = (sql, params = []) => new Promise((resolve, reject) => {
-  db.get(sql, params, (err, row) => {
-    if (err) reject(err); else resolve(row);
-  });
-});
+/* ====================================================
+   DATABASE API WRAPPERS (Mocking SQL with JSON operations)
+   ==================================================== */
 
-const dbAll = (sql, params = []) => new Promise((resolve, reject) => {
-  db.all(sql, params, (err, rows) => {
-    if (err) reject(err); else resolve(rows);
-  });
-});
+const dbGet = async (sql, params = []) => {
+  loadDb();
+  const query = sql.toLowerCase();
 
-module.exports = { db, dbRun, dbGet, dbAll };
+  // 1. SELECT * FROM users WHERE email = ?
+  if (query.includes('select * from users where email =')) {
+    return dbData.users.find(u => u.email.toLowerCase() === params[0].toLowerCase()) || null;
+  }
+  
+  // 2. SELECT id, resetTokenExpiry FROM users WHERE email = ? AND resetToken = ?
+  if (query.includes('resettokenexpiry') && query.includes('email =') && query.includes('resettoken =')) {
+    const u = dbData.users.find(u => u.email.toLowerCase() === params[0].toLowerCase() && u.resetToken === params[1]);
+    return u ? { id: u.id, resetTokenExpiry: u.resetTokenExpiry } : null;
+  }
+
+  // 3. SELECT id FROM users WHERE email = ?
+  if (query.includes('select id from users where email =')) {
+    const u = dbData.users.find(u => u.email.toLowerCase() === params[0].toLowerCase());
+    return u ? { id: u.id } : null;
+  }
+
+  // 4. SELECT email FROM users WHERE id = ?
+  if (query.includes('select email from users where id =')) {
+    const u = dbData.users.find(u => u.id === params[0]);
+    return u ? { email: u.email } : null;
+  }
+
+  // 5. General single row fetches
+  if (query.includes('users where id =')) {
+    return dbData.users.find(u => u.id === params[0]) || null;
+  }
+
+  return null;
+};
+
+const dbAll = async (sql, params = []) => {
+  loadDb();
+  const query = sql.toLowerCase();
+
+  if (query.includes('select * from clients')) return dbData.clients;
+  if (query.includes('select * from campaigns')) return dbData.campaigns;
+  if (query.includes('select * from leads')) return dbData.leads;
+  if (query.includes('select * from activity')) {
+    return dbData.activity.slice(0, 60);
+  }
+  if (query.includes('select id, name, email, role, status, clientid, createdat from users')) {
+    if (params[0]) {
+      return dbData.users.filter(u => u.id === params[0]);
+    }
+    return dbData.users.map(({password, ...u}) => u);
+  }
+
+  // Pending users list: SELECT ... FROM users WHERE status IN ("pending", "rejected")
+  if (query.includes('status in ("pending", "rejected")')) {
+    return dbData.users
+      .filter(u => u.status === 'pending' || u.status === 'rejected')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  return [];
+};
+
+const dbRun = async (sql, params = []) => {
+  loadDb();
+  const query = sql.toLowerCase();
+
+  // 1. INSERT INTO users
+  if (query.includes('insert into users')) {
+    const [id, name, email, password, phone, company, role, status, createdAt] = params;
+    dbData.users.push({ id, name, email, password, phone, company, role, status, createdAt });
+  }
+  // 2. INSERT INTO clients
+  else if (query.includes('insert into clients')) {
+    const [id, name, email, phone, address, industry, status, createdAt] = params;
+    dbData.clients.push({ id, name, email, phone, address, industry, status, createdAt });
+  }
+  // 3. INSERT INTO campaigns
+  else if (query.includes('insert into campaigns')) {
+    const [id, clientId, name, budget, spent, status, platform, startDate, endDate, description] = params;
+    dbData.campaigns.push({ id, clientId, name, budget, spent, status, platform, startDate, endDate, description });
+  }
+  // 4. INSERT INTO leads
+  else if (query.includes('insert into leads')) {
+    const [id, clientId, campaignId, name, email, phone, status, source, createdAt] = params;
+    dbData.leads.push({ id, clientId, campaignId, name, email, phone, status, source, createdAt });
+  }
+  // 5. INSERT INTO activity
+  else if (query.includes('insert into activity')) {
+    const [id, type, entity, name, user, action, timestamp] = params;
+    dbData.activity.unshift({ id, type, entity, name, user, action, timestamp });
+  }
+  // 6. UPDATE users (Status / Details)
+  else if (query.includes('update users set status =')) {
+    const idx = dbData.users.findIndex(u => u.id === params[0]);
+    if (idx !== -1) {
+      if (query.includes('active')) dbData.users[idx].status = 'active';
+      else if (query.includes('rejected')) dbData.users[idx].status = 'rejected';
+      else if (query.includes('disabled')) dbData.users[idx].status = 'disabled';
+    }
+  }
+  else if (query.includes('update users set resettoken =')) {
+    const idx = dbData.users.findIndex(u => u.id === params[2]);
+    if (idx !== -1) {
+      dbData.users[idx].resetToken = params[0];
+      dbData.users[idx].resetTokenExpiry = params[1];
+    }
+  }
+  else if (query.includes('update users set password =')) {
+    const idx = dbData.users.findIndex(u => u.id === params[1]);
+    if (idx !== -1) {
+      dbData.users[idx].password = params[0];
+      dbData.users[idx].resetToken = null;
+      dbData.users[idx].resetTokenExpiry = null;
+    }
+  }
+  else if (query.includes('update users set name=')) {
+    const idx = dbData.users.findIndex(u => u.id === params[5]);
+    if (idx !== -1) {
+      dbData.users[idx].name = params[0];
+      dbData.users[idx].email = params[1];
+      dbData.users[idx].role = params[2];
+      dbData.users[idx].status = params[3];
+      dbData.users[idx].clientId = params[4];
+    }
+  }
+  // 7. DELETES
+  else if (query.includes('delete from clients')) dbData.clients = [];
+  else if (query.includes('delete from campaigns')) dbData.campaigns = [];
+  else if (query.includes('delete from leads')) dbData.leads = [];
+  else if (query.includes('delete from activity')) dbData.activity = [];
+
+  saveDb();
+  return { changes: 1 };
+};
+
+module.exports = { dbGet, dbAll, dbRun };
