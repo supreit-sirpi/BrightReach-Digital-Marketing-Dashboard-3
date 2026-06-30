@@ -14,7 +14,7 @@
    ==================================================== */
 const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:3000/api'
-  : (localStorage.getItem('br_api_url') || 'https://brightreach-backend-3.onrender.com/api');
+  : '/api';
 
 // Override fetch globally to show loading indicator if server is waking up (Render free tier sleeps)
 const originalFetch = window.fetch;
